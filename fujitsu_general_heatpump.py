@@ -10,20 +10,21 @@ from homeassistant.components.climate import PLATFORM_SCHEMA
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import ClimateEntityFeature
 from homeassistant.components.climate.const import HVACMode
-from homeassistant.const import (ATTR_TEMPERATURE, CONF_USERNAME, CONF_PASSWORD, TEMP_CELSIUS)
+from homeassistant.components.climate.const import (FAN_LOW, FAN_MEDIUM, FAN_HIGH, FAN_AUTO)
+from homeassistant.const import (ATTR_TEMPERATURE, CONF_USERNAME, CONF_PASSWORD)
+from homeassistant.const import UnitOfTemperature
 import homeassistant.helpers.config_validation as cv
 
 from pyfujitseu import SplitAC
 from pyfujitseu import api
 from pyfujitseu.Properties import BooleanProperty
 from pyfujitseu.Properties import OperationMode
+from pyfujitseu.Properties import FanSpeed
 from pyfujitseu.Properties import VerticalSwingPosition as vsp
 from pyfujitseu.Properties import OperationModeDescriptors as omd
 from pyfujitseu.Properties import FanSpeedDescriptors as fsd
 from pyfujitseu.Properties import BooleanDescriptors as bd
 from pyfujitseu.Properties import VerticalPositionDescriptors as vpd
-
-REQUIREMENTS = ['pyfujitsu==91.9.4']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +59,9 @@ VERTICAL_CENTER_LOW = 'Center Low'
 VERTICAL_LOW = 'Low'
 VERTICAL_LOWEST = 'Lowest'
 
+# The other fan states are defined in the const file
+FAN_QUIET = 'Quiet'
+
 HA_SWING_TO_FUJITSU = {
     VERTICAL_HIGHEST: vsp.HIGHEST,
     VERTICAL_HIGH: vsp.HIGH,
@@ -74,6 +78,22 @@ FUJITSU_SWING_TO_HA = {
     vpd.CENTER_LOW: VERTICAL_CENTER_LOW,
     vpd.LOW: VERTICAL_LOW,
     vpd.LOWEST: VERTICAL_LOWEST
+}
+
+FUJITSU_FAN_TO_HA = {
+    fsd.QUIET: FAN_QUIET,
+    fsd.LOW: FAN_LOW,
+    fsd.MEDIUM: FAN_MEDIUM,
+    fsd.HIGH: FAN_HIGH,
+    fsd.AUTO: FAN_AUTO
+}
+
+HA_FAN_TO_FUJITSU = {
+    FAN_QUIET: FanSpeed.QUIET,
+    FAN_LOW: FanSpeed.LOW,
+    FAN_MEDIUM: FanSpeed.MEDIUM,
+    FAN_HIGH: FanSpeed.HIGH,
+    FAN_AUTO: FanSpeed.AUTO
 }
 
 
@@ -99,23 +119,33 @@ class FujitsuClimate(ClimateEntity):
         self._api = api
         self._dsn = dsn
         self._fujitsu_device = SplitAC.SplitAC(self._dsn, self._api)
-        self._name = self.name
-        self._aux_heat = self.is_aux_heat_on
-        self._target_temperature = self.target_temperature
-        self._unit_of_measurement = self.unit_of_measurement
-        self._current_fan_mode = self.current_fan_mode
-        self._current_operation = self.current_operation
-        self._current_swing_mode = self.current_swing_mode
-        self._fan_list = [fsd.QUIET, fsd.LOW, fsd.MEDIUM, fsd.HIGH, fsd.AUTO]
-        self._operation_list = [FUJITSU_TO_HA_STATE[omd.HEAT], FUJITSU_TO_HA_STATE[omd.COOL], FUJITSU_TO_HA_STATE[omd.AUTO],
-                                FUJITSU_TO_HA_STATE[omd.DRY], FUJITSU_TO_HA_STATE[omd.FAN], FUJITSU_TO_HA_STATE[omd.OFF],
-                                FUJITSU_TO_HA_STATE[omd.ON]]
-        self._swing_list = [VERTICAL_SWING, VERTICAL_HIGHEST, VERTICAL_HIGH, VERTICAL_CENTER_HIGH, VERTICAL_CENTER_LOW, VERTICAL_LOW, VERTICAL_LOWEST]
-        self._target_temperature_high = self.target_temperature_high
-        self._target_temperature_low = self.target_temperature_low
-        self._on = self.is_on
-        self._supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE \
-                                   | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.AUX_HEAT
+        self._attr_name = self.name
+        self._attr_fan_modes = [FAN_QUIET,
+                                FAN_LOW,
+                                FAN_MEDIUM,
+                                FAN_HIGH,
+                                FAN_AUTO]
+        self._attr_hvac_modes = [FUJITSU_TO_HA_STATE[omd.HEAT],
+                                 FUJITSU_TO_HA_STATE[omd.COOL],
+                                 FUJITSU_TO_HA_STATE[omd.AUTO],
+                                 FUJITSU_TO_HA_STATE[omd.DRY],
+                                 FUJITSU_TO_HA_STATE[omd.FAN],
+                                 FUJITSU_TO_HA_STATE[omd.OFF],
+                                 FUJITSU_TO_HA_STATE[omd.ON]]
+        self._attr_swing_modes = [VERTICAL_SWING,
+                                  VERTICAL_HIGHEST,
+                                  VERTICAL_HIGH,
+                                  VERTICAL_CENTER_HIGH,
+                                  VERTICAL_CENTER_LOW,
+                                  VERTICAL_LOW,
+                                  VERTICAL_LOWEST]
+        self._attr_max_temp = 30
+        self._attr_min_temp = 16
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE \
+                                        | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.AUX_HEAT
+
+        self.turn_on = self.activate
+        self.turn_off = self.deactivate
 
     @property
     def name(self):
@@ -123,24 +153,32 @@ class FujitsuClimate(ClimateEntity):
         return self._fujitsu_device.get_device_name()
 
     @property
-    def temperature_unit(self):
-        """Return the unit of measurement used by the platform."""
-        return TEMP_CELSIUS
-
-    @property
-    def current_operation(self):
-        """Return current operation ie. heat, cool, idle."""
+    def hvac_mode(self) -> HVACMode | str | None:
+        """Return hvac operation ie. heat, cool mode."""
         return FUJITSU_TO_HA_STATE[self._fujitsu_device.get_operating_mode()]
 
+    def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Set new target hvac mode."""
+        self._fujitsu_device.set_operation_mode(HA_STATE_TO_FUJITSU[hvac_mode])
+
     @property
-    def operation_list(self):
-        """Return the list of available operation modes."""
-        return self._operation_list
+    def temperature_unit(self):
+        """Return the unit of measurement used by the platform."""
+        return UnitOfTemperature.CELSIUS
+
+    @property
+    def current_temperature(self):
+        """Return the current temperature."""
+        return self._fujitsu_device.get_display_temperature()
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
         return self._fujitsu_device.get_target_temperature()
+
+    def set_temperature(self, **kwargs):
+        """Set new target temperature."""
+        self._fujitsu_device.set_target_temperature(kwargs.get(ATTR_TEMPERATURE))
 
     @property
     def target_temperature_step(self):
@@ -148,53 +186,27 @@ class FujitsuClimate(ClimateEntity):
         return 0.5
 
     @property
-    def powerful_mode(self):
-        """ Return Powerfull mode state"""
-        return self._fujitsu_device.get_powerful_mode()
+    def fan_mode(self) -> str | None:
+        """Return the fan setting.
+
+        Requires ClimateEntityFeature.FAN_MODE.
+        """
+        return FUJITSU_FAN_TO_HA[self._fujitsu_device.get_fan_speed()]
+
+    def set_fan_mode(self, fan_mode: str) -> None:
+        """Set new target fan mode."""
+        self._fujitsu_device.set_fan_speed(HA_FAN_TO_FUJITSU[fan_mode])
 
     @property
-    def is_on(self):
-        """Return true if on."""
-        if self._fujitsu_device.get_operating_mode() != omd.OFF:
-            return True
-        else:
-            return False
+    def swing_mode(self) -> str | None:
+        """Return the swing setting.
 
-    @property
-    def current_fan_mode(self):
-        """Return the fan setting."""
-        return self._fujitsu_device.get_fan_speed()
-
-    @property
-    def fan_list(self):
-        """Return the list of available fan modes."""
-        return self._fan_list
-
-    @property
-    def current_swing_mode(self):
-        """Return the fan setting."""
+        Requires ClimateEntityFeature.SWING_MODE.
+        """
         if self._fujitsu_device.get_vertical_swing() == bd.ON:
             return VERTICAL_SWING
         else:
             return FUJITSU_SWING_TO_HA[self._fujitsu_device.get_vertical_direction()]
-
-    @property
-    def swing_list(self):
-        """Return the list of available swing modes."""
-        return self._swing_list
-
-    def set_temperature(self, **kwargs):
-        """Set new target temperature."""
-        self._fujitsu_device.set_target_temperature(kwargs.get(ATTR_TEMPERATURE))
-
-    def set_fan_mode(self, fan_mode):
-        """Set new target fan mode."""
-        print(fan_mode)
-        self._fujitsu_device.set_fan_speed(fan_mode)
-
-    def set_operation_mode(self, operation_mode):
-        """Set new target operation mode."""
-        self._fujitsu_device.set_operation_mode(HA_STATE_TO_FUJITSU[operation_mode])
 
     def set_swing_mode(self, swing_mode):
         """Set new target swing operation."""
@@ -203,35 +215,31 @@ class FujitsuClimate(ClimateEntity):
         else:
             self._fujitsu_device.set_vertical_direction(HA_SWING_TO_FUJITSU[swing_mode])
 
-    def turn_on(self):
-        """Turn device on."""
-        return self._fujitsu_device.turn_on()
-
-    def turn_off(self):
-        """Turn device off."""
-        return self._fujitsu_device.turn_off()
-
     @property
-    def is_aux_heat_on(self):
-        """Reusing is for Powerfull mode."""
-        if self._fujitsu_device.get_powerful_mode() == bd.ON:
-            return True
-        else:
-            return False
+    def is_aux_heat(self):
+        """Reusing is for Powerful mode."""
+        return self._fujitsu_device.get_powerful_mode() == bd.ON
 
     def turn_aux_heat_on(self):
-        """Reusing is for Powerfull mode."""
+        """Reusing is for Powerful mode."""
         self._fujitsu_device.set_powerful_mode(BooleanProperty.ON)
 
     def turn_aux_heat_off(self):
-        """Reusing is for Powerfull mode."""
+        """Reusing is for Powerful mode."""
         self._fujitsu_device.set_powerful_mode(BooleanProperty.OFF)
 
-    @property
-    def supported_features(self):
-        """Return the list of supported features."""
-        return self._supported_features
+    def activate(self):
+        """Turn device on."""
+        return self._fujitsu_device.turn_on()
+
+    def deactivate(self):
+        """Turn device off."""
+        return self._fujitsu_device.turn_off()
 
     def update(self):
         """Retrieve latest state."""
         self._fujitsu_device.refresh_properties()
+
+    async def async_update(self):
+        """Retrieve latest state asynchronously."""
+        await self.hass.async_add_executor_job(self.update)
