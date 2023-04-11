@@ -15,16 +15,16 @@ from homeassistant.const import (ATTR_TEMPERATURE, CONF_USERNAME, CONF_PASSWORD)
 from homeassistant.const import UnitOfTemperature
 import homeassistant.helpers.config_validation as cv
 
-from pyfujitseu import SplitAC
-from pyfujitseu import api
-from pyfujitseu.Properties import BooleanProperty
-from pyfujitseu.Properties import OperationMode
-from pyfujitseu.Properties import FanSpeed
-from pyfujitseu.Properties import VerticalSwingPosition as vsp
-from pyfujitseu.Properties import OperationModeDescriptors as omd
-from pyfujitseu.Properties import FanSpeedDescriptors as fsd
-from pyfujitseu.Properties import BooleanDescriptors as bd
-from pyfujitseu.Properties import VerticalPositionDescriptors as vpd
+from pyfujitsu import SplitAC
+from pyfujitsu import api
+from pyfujitsu.Properties import BooleanProperty
+from pyfujitsu.Properties import OperationMode
+from pyfujitsu.Properties import FanSpeed
+from pyfujitsu.Properties import VerticalSwingPosition as vsp
+from pyfujitsu.Properties import OperationModeDescriptors as omd
+from pyfujitsu.Properties import FanSpeedDescriptors as fsd
+from pyfujitsu.Properties import BooleanDescriptors as bd
+from pyfujitsu.Properties import VerticalPositionDescriptors as vpd
 
 _LOGGER = logging.getLogger(__name__)
 
