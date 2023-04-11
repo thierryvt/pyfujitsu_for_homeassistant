@@ -5,5 +5,5 @@
     "documentation": "https://github.com/thierryvt/pyfujitsu_for_homeassistant/blob/master/README.md",
     "dependencies": [],
     "codeowners": [],
-    "requirements": ["pyfgl @ git+https://github.com/thierryvt/pyfujitsu/archive/refs/tags/1.0.3.zip"]
+    "requirements": ["pyfgl @ git+https://github.com/thierryvt/pyfujitsu.git"]
 }
