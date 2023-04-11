@@ -15,16 +15,17 @@ from homeassistant.const import (ATTR_TEMPERATURE, CONF_USERNAME, CONF_PASSWORD)
 from homeassistant.const import UnitOfTemperature
 import homeassistant.helpers.config_validation as cv
 
-from pyfgl import SplitAC
+from pyfgl import splitAC
 from pyfgl import api
-from pyfgl.Properties import BooleanProperty
-from pyfgl.Properties import OperationMode
-from pyfgl.Properties import FanSpeed
-from pyfgl.Properties import VerticalSwingPosition as vsp
-from pyfgl.Properties import OperationModeDescriptors as omd
-from pyfgl.Properties import FanSpeedDescriptors as fsd
-from pyfgl.Properties import BooleanDescriptors as bd
-from pyfgl.Properties import VerticalPositionDescriptors as vpd
+from pyfgl import constants
+from pyfgl.constants import BooleanProperty
+from pyfgl.constants import OperationMode
+from pyfgl.constants import FanSpeed
+from pyfgl.constants import VerticalSwingPosition as vsp
+from pyfgl.constants import OperationModeDescriptors as omd
+from pyfgl.constants import FanSpeedDescriptors as fsd
+from pyfgl.constants import BooleanDescriptors as bd
+from pyfgl.constants import VerticalPositionDescriptors as vpd
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ class FujitsuClimate(ClimateEntity):
     def __init__(self, api, dsn):
         self._api = api
         self._dsn = dsn
-        self._fujitsu_device = SplitAC.SplitAC(self._dsn, self._api)
+        self._fujitsu_device = splitAC.SplitAC(self._dsn, self._api)
         self._attr_name = self.name
         self._attr_fan_modes = [FAN_QUIET,
                                 FAN_LOW,
