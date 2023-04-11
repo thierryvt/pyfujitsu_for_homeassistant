@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
-    "domain": "fujitsu_general",
-    "name": "fujitsu_general",
+    "domain": "pyfgl",
+    "name": "pyfgl",
     "documentation": "https://github.com/thierryvt/pyfujitsu_for_homeassistant/blob/master/README.md",
     "dependencies": [],
     "codeowners": [],
