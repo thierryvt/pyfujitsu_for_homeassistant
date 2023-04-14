@@ -15,18 +15,9 @@ from homeassistant.const import (ATTR_TEMPERATURE, CONF_USERNAME, CONF_PASSWORD)
 from homeassistant.const import UnitOfTemperature
 import homeassistant.helpers.config_validation as cv
 
+from pyfgl import constants
 from pyfgl import splitAC
 from pyfgl import api
-from pyfgl import constants
-from pyfgl.constants import BooleanProperty
-from pyfgl.constants import OperationMode
-from pyfgl.constants import FanSpeed
-from pyfgl.constants import VerticalSwingPosition as vsp
-from pyfgl.constants import OperationModeDescriptors as omd
-from pyfgl.constants import FanSpeedDescriptors as fsd
-from pyfgl.constants import BooleanDescriptors as bd
-from pyfgl.constants import VerticalPositionDescriptors as vpd
-
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -35,21 +26,23 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 })
 
 HA_STATE_TO_FUJITSU = {
-    HVACMode.FAN_ONLY: OperationMode.FAN,
-    HVACMode.DRY: OperationMode.DRY,
-    HVACMode.COOL: OperationMode.COOL,
-    HVACMode.HEAT: OperationMode.HEAT,
-    HVACMode.AUTO: OperationMode.AUTO,
-    HVACMode.OFF: OperationMode.OFF
+    HVACMode.FAN_ONLY: constants.OperationMode.FAN,
+    HVACMode.DRY: constants.OperationMode.DRY,
+    HVACMode.COOL: constants.OperationMode.COOL,
+    HVACMode.HEAT: constants.OperationMode.HEAT,
+    HVACMode.AUTO: constants.OperationMode.AUTO,
+    HVACMode.OFF: constants.OperationMode.OFF,
+    HVACMode.HEAT_COOL: constants.OperationMode.ON
 }
 
 FUJITSU_TO_HA_STATE = {
-    omd.FAN: HVACMode.FAN_ONLY,
-    omd.DRY: HVACMode.DRY,
-    omd.COOL: HVACMode.COOL,
-    omd.HEAT: HVACMode.HEAT,
-    omd.AUTO: HVACMode.AUTO,
-    omd.OFF: HVACMode.OFF
+    constants.OperationModeDescriptors.FAN: HVACMode.FAN_ONLY,
+    constants.OperationModeDescriptors.DRY: HVACMode.DRY,
+    constants.OperationModeDescriptors.COOL: HVACMode.COOL,
+    constants.OperationModeDescriptors.HEAT: HVACMode.HEAT,
+    constants.OperationModeDescriptors.AUTO: HVACMode.AUTO,
+    constants.OperationModeDescriptors.OFF: HVACMode.OFF,
+    constants.OperationModeDescriptors.ON: HVACMode.HEAT_COOL
 }
 
 VERTICAL_SWING = 'Vertical Swing'
@@ -64,37 +57,37 @@ VERTICAL_LOWEST = 'Lowest'
 FAN_QUIET = 'Quiet'
 
 HA_SWING_TO_FUJITSU = {
-    VERTICAL_HIGHEST: vsp.HIGHEST,
-    VERTICAL_HIGH: vsp.HIGH,
-    VERTICAL_CENTER_HIGH: vsp.CENTER_HIGH,
-    VERTICAL_CENTER_LOW: vsp.CENTER_LOW,
-    VERTICAL_LOW: vsp.LOW,
-    VERTICAL_LOWEST: vsp.LOWEST
+    VERTICAL_HIGHEST: constants.VerticalSwingPosition.HIGHEST,
+    VERTICAL_HIGH: constants.VerticalSwingPosition.HIGH,
+    VERTICAL_CENTER_HIGH: constants.VerticalSwingPosition.CENTER_HIGH,
+    VERTICAL_CENTER_LOW: constants.VerticalSwingPosition.CENTER_LOW,
+    VERTICAL_LOW: constants.VerticalSwingPosition.LOW,
+    VERTICAL_LOWEST: constants.VerticalSwingPosition.LOWEST
 }
 
 FUJITSU_SWING_TO_HA = {
-    vpd.HIGHEST: VERTICAL_HIGHEST,
-    vpd.HIGH: VERTICAL_HIGH,
-    vpd.CENTER_HIGH: VERTICAL_CENTER_HIGH,
-    vpd.CENTER_LOW: VERTICAL_CENTER_LOW,
-    vpd.LOW: VERTICAL_LOW,
-    vpd.LOWEST: VERTICAL_LOWEST
+    constants.VerticalPositionDescriptors.HIGHEST: VERTICAL_HIGHEST,
+    constants.VerticalPositionDescriptors.HIGH: VERTICAL_HIGH,
+    constants.VerticalPositionDescriptors.CENTER_HIGH: VERTICAL_CENTER_HIGH,
+    constants.VerticalPositionDescriptors.CENTER_LOW: VERTICAL_CENTER_LOW,
+    constants.VerticalPositionDescriptors.LOW: VERTICAL_LOW,
+    constants.VerticalPositionDescriptors.LOWEST: VERTICAL_LOWEST
 }
 
 FUJITSU_FAN_TO_HA = {
-    fsd.QUIET: FAN_QUIET,
-    fsd.LOW: FAN_LOW,
-    fsd.MEDIUM: FAN_MEDIUM,
-    fsd.HIGH: FAN_HIGH,
-    fsd.AUTO: FAN_AUTO
+    constants.FanSpeedDescriptors.QUIET: FAN_QUIET,
+    constants.FanSpeedDescriptors.LOW: FAN_LOW,
+    constants.FanSpeedDescriptors.MEDIUM: FAN_MEDIUM,
+    constants.FanSpeedDescriptors.HIGH: FAN_HIGH,
+    constants.FanSpeedDescriptors.AUTO: FAN_AUTO
 }
 
 HA_FAN_TO_FUJITSU = {
-    FAN_QUIET: FanSpeed.QUIET,
-    FAN_LOW: FanSpeed.LOW,
-    FAN_MEDIUM: FanSpeed.MEDIUM,
-    FAN_HIGH: FanSpeed.HIGH,
-    FAN_AUTO: FanSpeed.AUTO
+    FAN_QUIET: constants.FanSpeed.QUIET,
+    FAN_LOW: constants.FanSpeed.LOW,
+    FAN_MEDIUM: constants.FanSpeed.MEDIUM,
+    FAN_HIGH: constants.FanSpeed.HIGH,
+    FAN_AUTO: constants.FanSpeed.AUTO
 }
 
 
@@ -126,13 +119,13 @@ class FujitsuClimate(ClimateEntity):
                                 FAN_MEDIUM,
                                 FAN_HIGH,
                                 FAN_AUTO]
-        self._attr_hvac_modes = [FUJITSU_TO_HA_STATE[omd.HEAT],
-                                 FUJITSU_TO_HA_STATE[omd.COOL],
-                                 FUJITSU_TO_HA_STATE[omd.AUTO],
-                                 FUJITSU_TO_HA_STATE[omd.DRY],
-                                 FUJITSU_TO_HA_STATE[omd.FAN],
-                                 FUJITSU_TO_HA_STATE[omd.OFF],
-                                 FUJITSU_TO_HA_STATE[omd.ON]]
+        self._attr_hvac_modes = [FUJITSU_TO_HA_STATE[constants.OperationModeDescriptors.HEAT],
+                                 FUJITSU_TO_HA_STATE[constants.OperationModeDescriptors.COOL],
+                                 FUJITSU_TO_HA_STATE[constants.OperationModeDescriptors.AUTO],
+                                 FUJITSU_TO_HA_STATE[constants.OperationModeDescriptors.DRY],
+                                 FUJITSU_TO_HA_STATE[constants.OperationModeDescriptors.FAN],
+                                 FUJITSU_TO_HA_STATE[constants.OperationModeDescriptors.OFF],
+                                 FUJITSU_TO_HA_STATE[constants.OperationModeDescriptors.ON]]
         self._attr_swing_modes = [VERTICAL_SWING,
                                   VERTICAL_HIGHEST,
                                   VERTICAL_HIGH,
@@ -204,7 +197,7 @@ class FujitsuClimate(ClimateEntity):
 
         Requires ClimateEntityFeature.SWING_MODE.
         """
-        if self._fujitsu_device.get_vertical_swing() == bd.ON:
+        if self._fujitsu_device.get_vertical_swing() == constants.BooleanDescriptors.ON:
             return VERTICAL_SWING
         else:
             return FUJITSU_SWING_TO_HA[self._fujitsu_device.get_vertical_direction()]
@@ -212,22 +205,22 @@ class FujitsuClimate(ClimateEntity):
     def set_swing_mode(self, swing_mode):
         """Set new target swing operation."""
         if swing_mode == VERTICAL_SWING:
-            self._fujitsu_device.set_vertical_swing(BooleanProperty.ON)
+            self._fujitsu_device.set_vertical_swing(constants.BooleanProperty.ON)
         else:
             self._fujitsu_device.set_vertical_direction(HA_SWING_TO_FUJITSU[swing_mode])
 
     @property
     def is_aux_heat(self):
         """Reusing is for Powerful mode."""
-        return self._fujitsu_device.get_powerful_mode() == bd.ON
+        return self._fujitsu_device.get_powerful_mode() == constants.BooleanDescriptors.ON
 
     def turn_aux_heat_on(self):
         """Reusing is for Powerful mode."""
-        self._fujitsu_device.set_powerful_mode(BooleanProperty.ON)
+        self._fujitsu_device.set_powerful_mode(constants.BooleanProperty.ON)
 
     def turn_aux_heat_off(self):
         """Reusing is for Powerful mode."""
-        self._fujitsu_device.set_powerful_mode(BooleanProperty.OFF)
+        self._fujitsu_device.set_powerful_mode(constants.BooleanProperty.OFF)
 
     def activate(self):
         """Turn device on."""
