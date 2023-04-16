@@ -14,10 +14,12 @@ from homeassistant.components.climate.const import (FAN_LOW, FAN_MEDIUM, FAN_HIG
 from homeassistant.const import (ATTR_TEMPERATURE, CONF_USERNAME, CONF_PASSWORD)
 from homeassistant.const import UnitOfTemperature
 import homeassistant.helpers.config_validation as cv
+from homeassistant.exceptions import PlatformNotReady
 
 from pyfgl import constants
 from pyfgl import splitAC
 from pyfgl import api
+
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -91,28 +93,33 @@ HA_FAN_TO_FUJITSU = {
 }
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Fujitsu Split platform."""
     username = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
     _LOGGER.debug("Added Fujitsu Account for username: %s ", username)
 
-    fglairapi = api.Api(username, password)
-    if not fglairapi._authenticate():
+    fgl_api = api.Api(username, password, 'eu')
+    if not await hass.async_add_executor_job(lambda: fgl_api._authenticate()):
         _LOGGER.error("Unable to authenticate with Fujistsu General")
-        return
+        raise PlatformNotReady(f"Failed to authenticate with Fgl API with username {username}")
 
-    devices = fglairapi.get_devices_dsn()
-    add_entities(FujitsuClimate(fglairapi, dsn) for dsn in devices)
+    devices = await hass.async_add_executor_job(lambda: fgl_api.get_devices_dsn())
+    entities = []
+    for dsn in devices:
+        ac = splitAC.SplitAC(dsn, fgl_api)
+        await hass.async_add_executor_job(lambda: ac.refresh_properties())
+        entities.append(FujitsuClimate(ac, hass))
+
+    add_entities(entities)
 
 
 class FujitsuClimate(ClimateEntity):
     """Representation of a Fujitsu Heatpump."""
 
-    def __init__(self, api, dsn):
-        self._api = api
-        self._dsn = dsn
-        self._fujitsu_device = splitAC.SplitAC(self._dsn, self._api)
+    def __init__(self, device, hass):
+        self._hass = hass
+        self._fujitsu_device = device
         self._attr_name = self.name
         self._attr_fan_modes = [FAN_QUIET,
                                 FAN_LOW,
@@ -236,4 +243,4 @@ class FujitsuClimate(ClimateEntity):
 
     async def async_update(self):
         """Retrieve latest state asynchronously."""
-        await self.hass.async_add_executor_job(self.update)
+        await self._hass.async_add_executor_job(self.update)
