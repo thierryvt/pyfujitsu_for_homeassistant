@@ -142,6 +142,7 @@ class FujitsuClimate(ClimateEntity):
                                   VERTICAL_LOWEST]
         self._attr_max_temp = 30
         self._attr_min_temp = 16
+        self._attr_target_temperature_step = 0.5
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE \
                                         | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.AUX_HEAT
 
@@ -180,11 +181,6 @@ class FujitsuClimate(ClimateEntity):
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
         self._fujitsu_device.set_target_temperature(kwargs.get(ATTR_TEMPERATURE))
-
-    @property
-    def target_temperature_step(self):
-        """Return the supported step of target temperature."""
-        return 0.5
 
     @property
     def fan_mode(self) -> str | None:
